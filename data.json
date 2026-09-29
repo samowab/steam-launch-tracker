@@ -1,4 +1,15 @@
 {
-  "generatedAt": "2026-09-29T00:00:00.000Z",
-  "projects": []
+  "generatedAt": "2026-09-29T01:00:00.000Z",
+  "projects": [
+    {
+      "id": "test",
+      "name": "테스트 타이틀",
+      "launchDate": "2026-11-15",
+      "checks": {
+        "core-config": {"checked": true},
+        "tags": {"checked": true},
+        "capsules": {"checked": true}
+      }
+    }
+  ]
 }
