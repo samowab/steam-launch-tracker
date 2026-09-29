@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스팀 런칭 트래커</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f6f8; --surface:#ffffff; --surface-2:#eef1f4; --border:#dbe1e7;
+    --fg:#14202b; --fg-muted:#5b6b78; --fg-faint:#8996a3;
+    --accent:#1d5fd6; --accent-fg:#ffffff; --accent-soft:#e4edfd;
+    --good:#1c8a5a; --good-soft:#e2f4ea;
+    --warn:#b5790a; --warn-soft:#fbf0dc;
+    --danger:#c23636; --danger-soft:#fbe6e6;
+    --font-display:'Manrope',system-ui,sans-serif;
+    --font-body:'Source Sans 3',system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#0f1620; --surface:#161f2b; --surface-2:#1c2734; --border:#2a3644;
+      --fg:#e8edf2; --fg-muted:#9caab8; --fg-faint:#69798a;
+      --accent:#5b93ff; --accent-fg:#0b1220; --accent-soft:#1c2c47;
+      --good:#3ecf8e; --good-soft:#123023;
+      --warn:#e0a83a; --warn-soft:#392b0f;
+      --danger:#f0696a; --danger-soft:#3a1a1b;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0f1620; --surface:#161f2b; --surface-2:#1c2734; --border:#2a3644;
+    --fg:#e8edf2; --fg-muted:#9caab8; --fg-faint:#69798a;
+    --accent:#5b93ff; --accent-fg:#0b1220; --accent-soft:#1c2c47;
+    --good:#3ecf8e; --good-soft:#123023;
+    --warn:#e0a83a; --warn-soft:#392b0f;
+    --danger:#f0696a; --danger-soft:#3a1a1b;
+  }
+  *{box-sizing:border-box;}
+  html,body{background:var(--bg);}
+  body{color:var(--fg);font-family:var(--font-body);margin:0;padding-inline:16px;padding-block:0 40px;}
+  h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;}
+  .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+  a{color:var(--accent);}
+  button{font:inherit;cursor:pointer;}
+
+  .wrap{max-width:840px;margin:0 auto;}
+
+  .topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding-block:14px 8px;
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);}
+  .brand{display:flex;align-items:baseline;gap:8px;min-width:0;}
+  .brand h1{font-size:1.05rem;font-weight:800;white-space:nowrap;}
+  .brand .sub{color:var(--fg-faint);font-size:.78rem;white-space:nowrap;}
+  .backlink{background:none;border:none;color:var(--fg-muted);font-size:.85rem;padding:4px 0;
+    display:flex;align-items:center;gap:4px;}
+  .backlink:hover{color:var(--fg);}
+  .readonly-flag{font-size:.72rem;color:var(--fg-faint);border:1px solid var(--border);border-radius:99px;
+    padding:2px 9px;white-space:nowrap;}
+
+  .list-head{padding-block:22px 14px;}
+  .list-head p{color:var(--fg-muted);font-size:.92rem;max-width:56ch;line-height:1.55;margin:6px 0 0;}
+  .project-grid{display:grid;gap:10px;grid-template-columns:1fr;padding-block:6px 28px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+    display:flex;align-items:center;gap:14px;text-align:left;width:100%;color:inherit;}
+  .card:hover{border-color:var(--accent);}
+  .card .cname{font-family:var(--font-display);font-weight:700;font-size:.98rem;}
+  .card .cmeta{color:var(--fg-muted);font-size:.8rem;margin-top:2px;}
+  .card .cright{margin-left:auto;text-align:right;flex-shrink:0;}
+  .dday-pill{display:inline-block;font-family:var(--font-mono);font-size:.78rem;font-weight:600;
+    padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .dday-pill.upcoming{background:var(--accent-soft);color:var(--accent);}
+  .dday-pill.launchweek{background:var(--warn-soft);color:var(--warn);}
+  .dday-pill.post{background:var(--surface-2);color:var(--fg-muted);}
+  .ring-mini{font-size:.72rem;color:var(--fg-faint);margin-top:4px;}
+
+  .proj-head{padding-block:18px 6px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 22px;}
+  .proj-title{font-size:1.35rem;font-weight:800;}
+  .dday-label{color:var(--fg-muted);font-size:.78rem;}
+  .progress-track{width:100%;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:10px;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:99px;}
+  .proj-actions{display:flex;gap:8px;margin-left:auto;}
+  .btn{border-radius:7px;padding:8px 14px;font-size:.86rem;font-weight:600;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--fg);}
+
+  .nextup{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:14px 16px;margin-block:16px;}
+  .nextup h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);margin-bottom:8px;}
+  .nextup ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;}
+  .nextup li{display:flex;align-items:flex-start;gap:8px;font-size:.9rem;}
+  .nextup li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:7px;flex-shrink:0;}
+  .nextup .allclear{color:var(--fg-muted);font-size:.88rem;}
+
+  .phase-rail{display:flex;gap:8px;overflow-x:auto;padding-block:4px 6px;margin-bottom:4px;scrollbar-width:thin;}
+  .phase-chip{flex-shrink:0;border:1px solid var(--border);background:var(--surface);border-radius:9px;
+    padding:8px 12px;text-align:left;min-width:132px;}
+  .phase-chip .pn{font-size:.7rem;color:var(--fg-faint);font-family:var(--font-mono);}
+  .phase-chip .pt{font-size:.82rem;font-weight:700;margin-top:1px;}
+  .phase-chip .pp{font-size:.72rem;color:var(--fg-muted);margin-top:4px;}
+  .phase-chip.active{border-color:var(--accent);background:var(--accent-soft);}
+  .phase-chip.current .pn{color:var(--accent);}
+  .phase-chip.done{opacity:.7;}
+
+  .phase-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 18px 8px;margin-bottom:32px;}
+  .phase-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .phase-panel h3{font-size:1.05rem;}
+  .phase-timing{font-size:.76rem;color:var(--fg-faint);font-family:var(--font-mono);margin-top:2px;}
+  .phase-blurb{color:var(--fg-muted);font-size:.86rem;line-height:1.6;margin:10px 0 4px;max-width:64ch;}
+  .case-note{background:var(--surface-2);border-left:3px solid var(--warn);border-radius:0 8px 8px 0;
+    padding:9px 12px;font-size:.82rem;color:var(--fg-muted);margin:10px 0 14px;line-height:1.55;}
+  .case-note b{color:var(--fg);}
+
+  .day-label{font-size:.72rem;font-weight:700;color:var(--fg-faint);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px;}
+  .day-label:first-of-type{margin-top:6px;}
+
+  .item-row{display:flex;gap:11px;padding:10px 0;border-top:1px solid var(--border);}
+  .item-row:first-of-type{border-top:none;}
+  .item-check{flex-shrink:0;width:20px;height:20px;border-radius:6px;border:1.6px solid var(--fg-faint);
+    background:var(--surface);margin-top:1px;display:flex;align-items:center;justify-content:center;color:transparent;}
+  .item-check.checked{background:var(--good);border-color:var(--good);color:var(--good-soft);}
+  .item-body{flex:1;min-width:0;}
+  .item-text{font-size:.92rem;line-height:1.5;}
+  .item-row.checked .item-text{color:var(--fg-muted);text-decoration:line-through;text-decoration-color:var(--border);}
+  .item-why{font-size:.78rem;color:var(--fg-faint);margin-top:2px;line-height:1.5;}
+  .item-tag{display:inline-block;font-size:.68rem;font-weight:700;color:var(--accent);background:var(--accent-soft);
+    border-radius:5px;padding:1px 6px;margin-right:6px;vertical-align:1px;}
+  .item-meta{font-size:.72rem;color:var(--fg-faint);margin-top:4px;}
+
+  .bench{margin-block:8px 30px;}
+  .bench summary{cursor:pointer;font-size:.84rem;color:var(--fg-muted);font-weight:600;padding:6px 2px;}
+  .bench-grid{display:grid;gap:8px;grid-template-columns:repeat(2,1fr);margin-top:10px;}
+  .bench-item{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+  .bench-item .bv{font-family:var(--font-mono);font-weight:700;font-size:1.05rem;}
+  .bench-item .bl{font-size:.74rem;color:var(--fg-muted);margin-top:2px;line-height:1.4;}
+
+  .empty-state{padding:40px 16px;text-align:center;color:var(--fg-muted);}
+  .footnote{color:var(--fg-faint);font-size:.76rem;text-align:center;padding-block:20px 4px;}
+
+  @media (max-width:520px){ .bench-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var PHASES = [
+    { id:"p0", num:"00", label:"스토어 페이지 기초", timing:"상시 · 활동 시작 전 필수", startDday: Infinity,
+      blurb:"정확한 메타데이터와 에셋이 알고리즘 매칭의 출발점입니다. 임시값이나 부정확한 태그는 노출 자체를 제한합니다.",
+      items:[
+        {id:"core-config", text:"장르·출시상태·개발사/배급사 정보 정확히 입력, 임시 출시일 방치 금지", why:"부정확한 메타데이터는 알고리즘 매칭을 왜곡시킴"},
+        {id:"tags", text:"정확하고 구체적인 태그 5~10개 선정, 경쟁작과 비교 검증", why:"태그는 마케팅 키워드가 아니라 알고리즘이 유저를 매칭하는 기준"},
+        {id:"capsules", text:"메인/스몰/헤더 캡슐 + 라이브러리 에셋 업로드, 작은 크기에서도 장르가 읽히는지 확인", why:"캡슐은 클릭률을 결정하는 가장 중요한 비주얼 자산"},
+        {id:"trailer", text:"게임플레이 중심 트레일러 최소 1개, 첫 5~10초 안에 핵심 훅 배치", why:"트레일러는 페이지 내 가장 강력한 전환 자산"},
+        {id:"screenshots", text:"스크린샷은 전부 실제 게임플레이, 첫 2~3장에 핵심 루프 노출", why:"클릭 이후 기대를 증명하는 자료 — 컨셉아트·메뉴샷은 지양"},
+        {id:"short-desc", text:"짧은 설명에 장르 + 핵심 후크를 1~2문장으로 명시", why:"몇 초 안에 '무엇을 하는 게임인지' 답해야 이탈을 막음"},
+        {id:"ratings-locale", text:"PEGI/ESRB/USK/CERO 등 지역별 연령등급 및 로컬라이제이션 기본 설정", why:"누락 시 특정 지역에서 페이지 자체가 숨겨질 수 있음"},
+        {id:"trust-signals", text:"최소/권장 사양, Early Access 여부, DLC·IAP 과금 구조를 정직하게 고지", why:"신뢰 신호는 전환율과 초기 리뷰 정서에 직접 영향"},
+        {id:"wishlist-cta", text:"위시리스트 버튼과 CTA가 페이지에서 명확히 보이는지 확인", why:"위시리스트는 출시 전 성과를 예측하는 가장 강한 신호"}
+      ]},
+    { id:"p1", num:"01", label:"초기 모멘텀 구축", timing:"출시 6~12개월 전", startDday:365,
+      blurb:"한 번에 다 보여주지 말고 발표 → 한정 플레이테스트 → 데모 순으로 단계적으로 공개해 모멘텀을 쌓습니다.",
+      caseNote:"크로노 오디세이: CBT1 이후 1년의 공백을 '기대감의 소멸'이 아니라 '대기 상태'로 진단하고, 개발사가 직접 제작한 인게임 영상 하나로 신뢰 회복을 첫 스텝으로 설계했습니다.",
+      items:[
+        {id:"wl-target", text:"팀 규모에 맞는 목표 위시리스트 구간 설정 (인디 5천~1만 / 탄탄한 인디 1만~2만 / AA 3~5만+ / AAA 10만+)", why:"숫자 자체보다 초반 판매 모멘텀을 만들 수요 확보가 목적"},
+        {id:"staged-reveal", text:"공개 → 한정 플레이테스트 → 데모/페스티벌 순으로 단계적 공개 계획 수립", why:"접근을 통제해 특정 시점에 관심을 집중시켜야 화제성이 생김"},
+        {id:"devlog-cadence-early", text:"데브로그·커뮤니티 업데이트 주기 설정 (6~12개월 전 구간: 4~6주 간격)", why:"업데이트가 끊기면 알고리즘도 유저도 관심을 거둠"},
+        {id:"community-channel", text:"Discord 등 커뮤니티 채널 개설 및 최소 운영 체계 마련", why:"전환은 느리지만 품질 높은 유저를 확보하는 채널"},
+        {id:"channel-mix", text:"페이드/커뮤니티/인플루언서 중 우리 조합의 역할 정의", why:"한 채널만으로는 런칭 전체를 끌고 갈 수 없음"},
+        {id:"creator-longlist", text:"장르 적합성 기준으로 인플루언서·크리에이터 후보 리스트업", why:"규모보다 핏이 좋은 크리에이터가 스파이크를 만듦"}
+      ]},
+    { id:"p2", num:"02", label:"데모 · Next Fest 준비", timing:"출시 2~4개월 전", startDday:120,
+      blurb:"Steam Next Fest는 무료로 스토어 전면을 장악할 수 있는 이벤트입니다. 신청은 자동이 아니라 직접 opt-in해야 하며, 준비 상태로 결과가 갈립니다.",
+      caseNote:"크로노 오디세이: 출시 3~4개월 전 시점의 'CBT' 네이밍은 완성도 의심을 유발할 수 있다고 보고, 무료로 스토어 전면 노출을 얻는 SNF를 대신 선택했습니다.",
+      items:[
+        {id:"eligibility", tag:"준비", text:"스토어 페이지 공개 상태, 태그·장르 일치, 데모 요건 등 참가 자격 사전 확인", why:"요건 미충족 시 승인돼도 노출되지 않을 수 있음"},
+        {id:"apply", tag:"준비", text:"Steamworks → Events & Marketing에서 이벤트 신청 (자동 등록 아님)"},
+        {id:"demo-ready", tag:"준비", text:"핵심 루프를 대표하는 플레이 가능한 무료 데모 준비", why:"데모는 지금도 가장 강력한 위시리스트 확보 도구"},
+        {id:"demo-cta", tag:"준비", text:"데모 내 'Add to Wishlist' CTA 노출 확인"},
+        {id:"event-messaging", tag:"준비", text:"스토어·소셜·데브로그용 이벤트 메시징 플랜 수립"},
+        {id:"during-trailer", tag:"진행중", text:"짧고 집중된 트레일러로 이벤트 페이지 노출"},
+        {id:"during-stream", tag:"진행중", text:"라이브스트림 일정 확정 및 운영"},
+        {id:"during-update", tag:"진행중", text:"이벤트 중간 신규 GIF·스크린샷 등 업데이트 게시"},
+        {id:"during-promo", tag:"진행중", text:"페이드·인플루언서·커뮤니티 크로스채널 프로모션 조율"},
+        {id:"after-recap", tag:"종료후", text:"팔로업 데브로그 게시 (참여 내용 + 다음 스텝)"},
+        {id:"after-reactivate", tag:"종료후", text:"이벤트 참여 유저 대상 위시리스트 재활성화 메시지 발송"},
+        {id:"after-feedback", tag:"종료후", text:"데모 피드백 반영 계획 수립"}
+      ]},
+    { id:"p3", num:"03", label:"빌드업 · 사전판매", timing:"출시 1~3개월 전", startDday:60,
+      blurb:"확보한 모멘텀을 판매로 연결하는 구간입니다. 채널별 전환 성과를 계속 점검하며 예산을 재배치합니다.",
+      caseNote:"크로노 오디세이: TGA 유료 슬롯(약 11억) vs 자체배포+유튜브 광고(약 6천만원, 18배 차이)를 영상 준비 완료 여부와 슬롯 확보 가능성 기준으로 저울질한 CEO 결정 사례가 있었습니다.",
+      items:[
+        {id:"devlog-tighten", text:"데브로그 주기를 2~4주 간격으로 단축", why:"출시가 가까울수록 잦은 신호가 모멘텀을 유지"},
+        {id:"preorder", text:"사전판매 오픈 + 어나운스 트레일러 배포, CTA를 Pre-Order로 전환"},
+        {id:"creator-partnership", text:"미디어 프리뷰 코드·트위치 드랍 등 크리에이터 파트너십 가동"},
+        {id:"media-day", text:"미디어데이 및 주요 언론 인터뷰 진행"},
+        {id:"regional-price-review", text:"리전별 가격을 구매력 기준으로 재검토"},
+        {id:"channel-prune", text:"채널별 성과 모니터링 후 전환 안 되는 채널 축소, 잘 되는 채널에 집중"}
+      ]},
+    { id:"p4", num:"04", label:"런칭 준비 (D-7)", timing:"출시 7일 전 ~ 1일 전", startDday:7,
+      blurb:"출시 주간은 즉흥적으로 대응할 시간이 없습니다. 모든 것을 D-7 이전에 확정해야 합니다.",
+      items:[
+        {id:"final-audit", text:"스토어 페이지 최종 감사 (캡슐·트레일러·스크린샷·태그·설명)"},
+        {id:"pricing-confirm", text:"가격 및 리전별 가격 확정"},
+        {id:"discount-schedule", text:"런칭 할인 일정 확정 (적용 시)"},
+        {id:"embargo", text:"프레스·크리에이터 콘텐츠 엠바고 및 스케줄 확정"},
+        {id:"paid-schedule", text:"페이드 캠페인 예약"},
+        {id:"mod-briefing", text:"커뮤니티·Discord 운영진 브리핑"},
+        {id:"known-issues", text:"알려진 이슈 문서화 + 대응 계획 준비"}
+      ]},
+    { id:"p5", num:"05", label:"런칭 주간", timing:"출시일 ~ D+7", startDday:0,
+      blurb:"출시 후 첫 7일은 Steam이 초기 판매·참여·정서를 평가해 이후 노출 범위를 결정하는 가장 중요한 구간입니다.",
+      items:[
+        {id:"d0-release", day:"Day 0", text:"정해진 시간에 출시 (자정 깜짝 출시 지양)"},
+        {id:"d0-announce", day:"Day 0", text:"Steam 런칭 공지 게시"},
+        {id:"d0-discount", day:"Day 0", text:"런칭 할인 적용 (계획 시)"},
+        {id:"d0-comm", day:"Day 0", text:"커뮤니티 공지 발송 (Discord·소셜·뉴스레터)"},
+        {id:"d0-paid", day:"Day 0", text:"페이드 트래픽 + 리타게팅 가동"},
+        {id:"d0-monitor", day:"Day 0", text:"판매속도·위시리스트 전환·환불·성능 이슈 모니터링", why:"오늘은 신규 기능 배포 금지 — 안정성이 새로움보다 우선"},
+        {id:"d1-review", day:"Day 1", text:"리뷰 매시간 모니터링, 비판적 리뷰에 건설적으로 대응"},
+        {id:"d1-hotfix", day:"Day 1", text:"필요 시 긴급 패치"},
+        {id:"d2-thanks", day:"Day 2", text:"'출시 감사' 업데이트 게시 + 소셜 프루프 공유"},
+        {id:"d2-creator", day:"Day 2", text:"라이브 커버리지 크리에이터 재관여"},
+        {id:"d3-patch", day:"Day 3", text:"첫 소규모 업데이트·핫픽스 배포 + 패치노트 게시"},
+        {id:"d3-remessage", day:"Day 3", text:"위시리스터 재메시징"},
+        {id:"d4-adjust", day:"Day 4", text:"전환·리뷰 테마·환불 사유 점검 후 카피·트레일러·스크린샷 순서 조정"},
+        {id:"d4-scale", day:"Day 4", text:"전환 잘 되는 채널에만 예산 집중"},
+        {id:"d5-wave2", day:"Day 5", text:"2차 크리에이터 웨이브 (소규모·니치 채널) 가동"},
+        {id:"d5-event", day:"Day 5", text:"커뮤니티 이벤트 (AMA 등) 진행"},
+        {id:"d6-checkpoint", day:"Day 6", text:"판매추세·리뷰 안정성·참여도 평가 후 다음 액션 결정 (푸시 유지 / 업데이트 준비 / 지출 축소)"},
+        {id:"d7-recap", day:"Day 7", text:"1주차 리캡 업데이트 게시 + 다음 비저빌리티 모멘트 계획", why:"많은 팀이 여기서 조용해집니다 — 그러지 마세요"}
+      ]},
+    { id:"p6", num:"06", label:"포스트 런칭 · 지속 운영", timing:"D+7 이후, 상시", startDday:-7,
+      blurb:"할인 쿨다운, Visibility Round, 리뷰 관리 등 장기 가시성을 유지하기 위한 반복 루틴입니다.",
+      items:[
+        {id:"discount-cooldown", text:"커스텀 할인 종료 후 재할인까지 약 30일 쿨다운 규칙을 캘린더에 반영", why:"Steam은 할인을 10~90%로 제한하고 재할인까지 쿨다운을 둠"},
+        {id:"visibility-plan", text:"주요 업데이트·콘텐츠 드랍 시점에 맞춰 Update Visibility Round 활성화 계획 수립"},
+        {id:"visibility-assets", text:"Round 전 스토어 카피·공지·스크린샷 갱신"},
+        {id:"visibility-support", text:"Round 활성화 시 소셜·커뮤니티·페이드로 외부 지원"},
+        {id:"visibility-review", text:"Round 종료 후 판매·위시리스트·참여 데이터 리뷰 → 다음 모멘트 계획"},
+        {id:"review-monitor", text:"리뷰 스코어 지속 모니터링, 부정적 패턴 조기 대응"}
+      ]}
+  ];
+
+  var BENCHMARKS = [
+    {v:"0.35%", l:"스토어 CTR 중앙값 (혼잡한 이벤트 페이지 기준, 평균 0.61%)"},
+    {v:"10.5%", l:"위시리스트→판매 1주차 전환 중앙값 (GameDiscoverCo, 2024)"},
+    {v:"+421%", l:"Steam Next Fest 기간 일평균 위시리스트 증가 중앙값 (Valve)"},
+    {v:"+15%", l:"Next Fest 종료 후에도 지속되는 위시리스트 유입 상승분"}
+  ];
+
+  var TOTAL_ITEMS = PHASES.reduce(function(n,p){return n+p.items.length;},0);
+
+  function dday(launchDate){
+    if(!launchDate) return null;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var target = new Date(launchDate+"T00:00:00");
+    return Math.round((target-today)/86400000);
+  }
+  function ddayLabel(d){
+    if(d===null) return "D-day 미설정";
+    if(d>0) return "D-"+d;
+    if(d===0) return "D-day";
+    return "D+"+(-d);
+  }
+  function currentPhaseIndex(d){
+    if(d===null) return 0;
+    var idx = 0;
+    for(var i=0;i<PHASES.length;i++){ if(d<=PHASES[i].startDday) idx = i; }
+    return idx;
+  }
+  function projectCounts(p){
+    var checked=0; PHASES.forEach(function(ph){ ph.items.forEach(function(it){
+      if(p.checks && p.checks[it.id] && p.checks[it.id].checked) checked++;
+    });});
+    return {checked:checked, total:TOTAL_ITEMS};
+  }
+  function phaseCounts(p, ph){
+    var checked=0; ph.items.forEach(function(it){ if(p.checks && p.checks[it.id] && p.checks[it.id].checked) checked++; });
+    return {checked:checked, total:ph.items.length};
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  }); }
+
+  var app = document.getElementById("app");
+  var route = {view:"list", projectId:null};
+  var PROJECTS = [];
+  var GENERATED_AT = null;
+  var viewedPhase = 0;
+
+  function goList(){ route = {view:"list", projectId:null}; render(); }
+  function goProject(id){ route = {view:"project", projectId:id};
+    var p = PROJECTS.find(function(x){ return x.id===id; });
+    viewedPhase = p && p.launchDate!=null ? currentPhaseIndex(dday(p.launchDate)) : 0;
+    render();
+  }
+  window.STLT = { goList:goList, goProject:goProject, setViewedPhase:function(i){ viewedPhase=i; render(); } };
+
+  function render(){ if(route.view==="list") renderList(); else renderProject(); }
+
+  function renderTopbar(showBack){
+    return '<div class="topbar"><div class="brand">'
+      + (showBack ? '<button class="backlink" onclick="STLT.goList()">&larr; 프로젝트 목록</button>'
+                  : '<h1>스팀 런칭 트래커</h1><span class="sub">단계별 체크리스트 · D-day 트래킹</span>')
+      + '</div><span class="readonly-flag">읽기 전용 미러</span></div>';
+  }
+
+  function renderList(){
+    var html = renderTopbar(false);
+    html += '<div class="list-head"><p>실시간 편집판은 Claude 대시보드에서 운영되며, 이 페이지는 그 스냅샷을 보여주는 읽기 전용 미러입니다. '
+      + (GENERATED_AT ? ('마지막 동기화: '+new Date(GENERATED_AT).toLocaleString('ko-KR')) : '')
+      + '</p></div>';
+    html += '<div class="project-grid">';
+    if(PROJECTS.length===0){
+      html += '<div class="empty-state">아직 동기화된 프로젝트가 없습니다.</div>';
+    } else {
+      PROJECTS.forEach(function(p){
+        var d = dday(p.launchDate);
+        var cnt = projectCounts(p);
+        var pct = Math.round(cnt.checked/cnt.total*100);
+        var pillClass = d===null ? "post" : (d>=0 && d<=7 ? "launchweek" : (d<0 ? "post" : "upcoming"));
+        html += '<button class="card" onclick="STLT.goProject(\''+p.id+'\')">'
+          + '<div><div class="cname">'+esc(p.name)+'</div>'
+          + '<div class="cmeta">'+(p.launchDate ? esc(p.launchDate) : '출시일 미설정')+'</div></div>'
+          + '<div class="cright"><span class="dday-pill '+pillClass+'">'+ddayLabel(d)+'</span>'
+          + '<div class="ring-mini">'+cnt.checked+' / '+cnt.total+' ('+pct+'%)</div></div>'
+          + '</button>';
+      });
+    }
+    html += '</div>';
+    app.innerHTML = html;
+  }
+
+  function renderProject(){
+    var p = PROJECTS.find(function(x){ return x.id===route.projectId; });
+    if(!p){ app.innerHTML = renderTopbar(true) + '<div class="empty-state">프로젝트를 찾을 수 없습니다.</div>'; return; }
+    var d = dday(p.launchDate);
+    var curIdx = p.launchDate ? currentPhaseIndex(d) : viewedPhase;
+    var cnt = projectCounts(p);
+    var pct = cnt.total ? Math.round(cnt.checked/cnt.total*100) : 0;
+    var pillClass = d===null ? "post" : (d>=0 && d<=7 ? "launchweek" : (d<0 ? "post" : "upcoming"));
+
+    var html = renderTopbar(true);
+    html += '<div class="proj-head">'
+      + '<div><span class="proj-title">'+esc(p.name)+'</span>'
+      + '<div class="dday-label">'+(p.launchDate? esc(p.launchDate) : '출시일 미설정')+'</div></div>'
+      + '<div><span class="dday-pill '+pillClass+'" style="font-size:1rem;padding:5px 12px;">'+ddayLabel(d)+'</span></div>'
+      + '</div>';
+    html += '<div class="progress-track"><div class="progress-fill" style="width:'+pct+'%"></div></div>';
+    html += '<div class="ring-mini" style="margin-top:6px;">전체 진행률 '+cnt.checked+' / '+cnt.total+' ('+pct+'%)</div>';
+
+    var nextItems = [];
+    for(var i=curIdx;i<PHASES.length && nextItems.length<5;i++){
+      PHASES[i].items.forEach(function(it){
+        if(nextItems.length>=5) return;
+        var c = p.checks && p.checks[it.id];
+        if(!c || !c.checked) nextItems.push(it);
+      });
+      if(i===curIdx && nextItems.length>0) break;
+    }
+    html += '<div class="nextup"><h2>다음 할 일</h2>';
+    html += nextItems.length===0
+      ? '<div class="allclear">현재 진행 구간의 항목을 모두 완료했습니다.</div>'
+      : '<ul>' + nextItems.map(function(it){ return '<li>'+esc(it.text)+'</li>'; }).join('') + '</ul>';
+    html += '</div>';
+
+    html += '<div class="phase-rail">';
+    PHASES.forEach(function(ph, i){
+      var pc = phaseCounts(p, ph);
+      var cls = "phase-chip";
+      if(i===viewedPhase) cls += " active";
+      if(i===curIdx) cls += " current";
+      if(pc.checked===pc.total) cls += " done";
+      html += '<button class="'+cls+'" onclick="STLT.setViewedPhase('+i+')">'
+        + '<div class="pn">'+ph.num+(i===curIdx?' · 현재':'')+'</div>'
+        + '<div class="pt">'+esc(ph.label)+'</div>'
+        + '<div class="pp">'+pc.checked+'/'+pc.total+'</div></button>';
+    });
+    html += '</div>';
+
+    var ph = PHASES[viewedPhase];
+    var pc = phaseCounts(p, ph);
+    html += '<div class="phase-panel">';
+    html += '<div class="phase-panel-head"><div><h3>'+ph.num+'. '+esc(ph.label)+'</h3>'
+      + '<div class="phase-timing">'+esc(ph.timing)+'</div></div><div class="ring-mini">'+pc.checked+' / '+pc.total+'</div></div>';
+    html += '<p class="phase-blurb">'+esc(ph.blurb)+'</p>';
+    if(ph.caseNote){ html += '<div class="case-note"><b>사례 노트.</b> '+esc(ph.caseNote)+'</div>'; }
+
+    var lastDay = null;
+    ph.items.forEach(function(it){
+      if(it.day && it.day!==lastDay){ html += '<div class="day-label">'+esc(it.day)+'</div>'; lastDay = it.day; }
+      var c = p.checks && p.checks[it.id];
+      var checked = !!(c && c.checked);
+      html += '<div class="item-row'+(checked?' checked':'')+'">'
+        + '<span class="item-check'+(checked?' checked':'')+'">'+(checked?'✓':'')+'</span>'
+        + '<div class="item-body"><div class="item-text">'+(it.tag?'<span class="item-tag">'+esc(it.tag)+'</span>':'')+esc(it.text)+'</div>'
+        + (it.why ? '<div class="item-why">'+esc(it.why)+'</div>' : '')
+        + '</div></div>';
+    });
+    html += '</div>';
+
+    html += '<details class="bench"><summary>참고 벤치마크 (업계 평균 수치)</summary><div class="bench-grid">'
+      + BENCHMARKS.map(function(b){ return '<div class="bench-item"><div class="bv">'+esc(b.v)+'</div><div class="bl">'+esc(b.l)+'</div></div>'; }).join('')
+      + '</div></details>';
+
+    app.innerHTML = html;
+  }
+
+  app.innerHTML = renderTopbar(false) + '<div class="empty-state">불러오는 중…</div>';
+  fetch('data.json').then(function(r){ return r.json(); }).then(function(data){
+    PROJECTS = data.projects || [];
+    GENERATED_AT = data.generatedAt || null;
+    render();
+  }).catch(function(){
+    app.innerHTML = renderTopbar(false) + '<div class="empty-state">데이터를 불러오지 못했습니다.</div>';
+  });
+})();
+</script>
+</body>
+</html>
